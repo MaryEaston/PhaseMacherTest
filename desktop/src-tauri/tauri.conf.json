@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "test-tauri",
+  "productName": "phase-matcher-desktop",
   "version": "0.1.0",
-  "identifier": "com.test-tauri.app",
+  "identifier": "com.example.tauri-mobile",
   "build": {
     "beforeDevCommand": "trunk serve",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "test-tauri",
+        "title": "phase-matcher-desktop",
         "width": 800,
         "height": 600
       }

@@ -1,0 +1,13 @@
+[package]
+name = "libpicker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# decimal = "2.1.0"
+anyhow = "*"
+thiserror = "*"
+csv = "1.3.1"
+rust_decimal = { version = "1.35.0", features = ["maths"] }
+rust_decimal_macros = "1.36.0"
+log = "0.4.14"

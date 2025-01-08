@@ -1,5 +1,5 @@
 [package]
-name = "test-tauri-ui"
+name = "phase-matcher-desktop-ui"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,11 +8,25 @@ edition = "2021"
 yew = { version = "0.21", features = ["csr"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = "0.3"
+web-sys = { version = "0.3", features = ["HtmlFormElement"] }
 js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 console_error_panic_hook = "0.1.7"
+csv = "1.3.1"
+anyhow = "1.0.40"
+rust_decimal = { version = "1.35.0", features = ["maths"] }
+rust_decimal_macros = "1.36.0"
+wasm-logger = "0.2"
+log = "0.4"
+plotters = "0.3.1"
+plotters-canvas = "0.3.0"
+chrono = "0.4"
+
+libpicker = { path = "../libpicker" }
+
+# [patch.crates-io]
+# hyper-tls = "0.5.0"
 
 [workspace]
 members = ["src-tauri"]

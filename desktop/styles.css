@@ -1,3 +1,25 @@
+.blank-horizontal{
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+}
+
+.blank-vertical{
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.blank-around{
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+div.spacer{
+  margin-left: 1em;
+  margin-right: 1em;
+}
+
 .logo.yew:hover {
   filter: drop-shadow(0 0 2em #20a88a);
 }
@@ -70,6 +92,14 @@ button {
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
 }
 
+input.short{
+  width: 6em;
+}
+
+input.long {
+  width: 12em;
+}
+
 button {
   cursor: pointer;
 }
@@ -87,7 +117,32 @@ button {
   outline: none;
 }
 
-#greet-input {
+button.big{
+  font-size: 2em;
+  font-weight: 1500;
+}
+
+textarea{
+  width: 80%;
+  height: 20em;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  color: #0f0f0f;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: border-color 0.25s;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  resize: vertical;
+}
+
+ol{
+  list-style-position: inside;/* インデックスをリストアイテムの内側に配置 */
+}
+
+#content-input {
   margin-right: 5px;
 }
 

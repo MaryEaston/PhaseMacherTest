@@ -1,0 +1,12 @@
+{
+  "emmet.includeLanguages": {
+    "rust": "html"
+  },
+  "cSpell.words": [
+    "conv",
+    "libpicker",
+    "onchange",
+    "onsubmit",
+    "TAURI"
+  ]
+}
