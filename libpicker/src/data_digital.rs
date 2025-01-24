@@ -61,6 +61,9 @@ impl DataDigital {
         datas.sort();
         datas.get(index).cloned()
     }
+    pub fn get_data_count(&self) -> usize {
+        self.datas.len()
+    }
     pub fn add(&mut self, x: Decimal, y: Decimal) {
         self.datas.insert(x, y);
     }
