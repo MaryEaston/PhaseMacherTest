@@ -25,7 +25,7 @@ where
 {
     let mut score: Decimal = dec!(0.0);
     for compare_x in compare_xs {
-        log::info!("x:{:?}", compare_x);
+        // log::info!("x:{:?}", compare_x);
         let y1 = data1.y(compare_x).unwrap();
         let y2 = data2.y(compare_x).unwrap();
         let w = weight.y(compare_x).unwrap();
@@ -64,7 +64,7 @@ fn comparison_function(value1: Decimal, value2: Decimal, weight: Decimal) -> Dec
     phase_difference(value1, value2).powu(2) * weight
 }
 
-fn phase_difference(angle1: Decimal, angle2: Decimal) -> Decimal {
+pub fn phase_difference(angle1: Decimal, angle2: Decimal) -> Decimal {
     // 角度を360度の範囲に正規化 (-360 ~ 360 もカバー)
     let normalize_angle = |angle: f64| -> f64 {
         let mut normalized = angle % 360.0;

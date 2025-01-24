@@ -1,18 +1,20 @@
 use super::csv::conv_csv;
 
 use std::collections::HashMap;
+use std::ops::Range;
 use std::str::FromStr;
 
 use libpicker::data::Data;
 use libpicker::data_analog::DataAnalog;
 use libpicker::data_digital::DataDigital;
+use log::debug;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use rust_decimal::MathematicalOps;
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-use web_sys::{Element, EventTarget, FileReader, HtmlFormElement, HtmlInputElement};
+use web_sys::{EventTarget, FileReader, HtmlFormElement, HtmlInputElement};
 use yew::prelude::*;
 
 use libpicker::search_closest;
@@ -271,7 +273,7 @@ fn get_input_by_name<T>(form: &HtmlFormElement, name: &str) -> T
 where
     T: Default + FromStr,
 {
-    log::debug!("get_input_by_name: {:?}", name);
+    // log::debug!("get_input_by_name: {:?}", name);
     form.get_elements_by_tag_name("input")
         .get_with_name(name)
         .unwrap()
@@ -349,7 +351,7 @@ fn compare(
                 .collect();
 
         let score = search_closest(
-            expected_datas,
+            expected_datas.clone(),
             target_datas,
             weight.clone(),
             weight.get_x_list(),
@@ -358,6 +360,7 @@ fn compare(
         let table = gen_result_table(score.clone());
         debug.set(table);
 
+        let score = calc_diff_score_with_expected(score, expected_datas);
         let rms = calc_rms_phase_error(transform(score));
         graph_data.set(rms);
     })
@@ -383,21 +386,49 @@ fn gen_result_table(score: HashMap<(String, String), DataDigital>) -> String {
     table
 }
 
+fn calc_diff_score_with_expected(
+    score: HashMap<(String, String), DataDigital>,
+    expected_datas: HashMap<String, DataAnalog>,
+) -> HashMap<(String, String), DataDigital> {
+    let score = score.clone();
+    let mut new_score = HashMap::<(String, String), DataDigital>::new();
+    for ((id, name), data) in score {
+        let expected_data = expected_datas.get(&id).unwrap();
+        let mut new_data = Vec::<(Decimal, Decimal)>::new();
+        for (x, y) in data.get_data() {
+            let delta_y = libpicker::phase_difference(y, expected_data.y(&x).unwrap());
+            new_data.push((x, delta_y));
+        }
+        let new_data = DataDigital::new(new_data);
+        new_score.insert((id, name), new_data);
+    }
+    new_score
+}
+
 fn transform(score: HashMap<(String, String), DataDigital>) -> Vec<Vec<(usize, Decimal)>> {
     let mut result: Vec<Vec<(usize, Decimal)>> = Vec::new();
     let mut keys: Vec<_> = score.keys().collect();
     keys.sort();
 
-    for i in 0..6 {
+    // データの最大長を取得
+    let max_length = score
+        .values()
+        .map(|data| data.get_data_count())
+        .max()
+        .unwrap_or(0);
+
+    for i in 0..max_length {
+        let mut head_value = dec!(0);
         let mut row: Vec<(usize, Decimal)> = Vec::new();
-        row.push((0, Decimal::from(i as u32 + 1)));
         for (j, key) in keys.iter().enumerate() {
             if let Some(data) = score.get(*key) {
-                if let Some((_, value)) = data.get(i) {
-                    row.push((j + 1, value));
+                if let Some((k, value)) = data.get(i) {
+                    head_value = k;
+                    row.push((j + 1, value.clone()));
                 }
             }
         }
+        row.insert(0, (0, head_value));
         result.push(row);
     }
 
@@ -409,7 +440,7 @@ fn calc_standard_deviation(values: Vec<Decimal>) -> Decimal {
     let variance = values
         .iter()
         .map(|value| {
-            let diff = *value - mean;
+            let diff = libpicker::phase_difference(*value, mean);
             diff * diff
         })
         .sum::<Decimal>()
@@ -421,14 +452,17 @@ fn calc_standard_deviation(values: Vec<Decimal>) -> Decimal {
 fn calc_rms_phase_error(data: Vec<Vec<(usize, Decimal)>>) -> DataDigital {
     let mut result = DataDigital::new(vec![]);
 
+    debug!("{:?}", data);
+
     for d in data {
         let mut d = d;
         d.sort();
         d.reverse();
-        let x = d.pop().unwrap().1;
-        let values: Vec<Decimal> = d.iter().map(|&(_, value)| value).collect();
+        let (mut extracted, remaining): (Vec<(usize, Decimal)>, Vec<(usize, Decimal)>) =
+            d.iter().partition(|(index, _d)| *index == 0);
+        let values: Vec<Decimal> = remaining.iter().map(|&(_, value)| value).collect();
         let y = calc_standard_deviation(values);
-        result.add(x, y);
+        result.add(extracted.pop().unwrap().1, y);
     }
     result
 }
@@ -445,12 +479,90 @@ mod tests {
         input.insert(
             ("0".to_string(), "foo".to_string()),
             DataDigital::new(vec![
+                (dec!(10), dec!(1.1594)),
+                (dec!(20), dec!(2.4639)),
+                (dec!(30), dec!(3.2370)),
+                (dec!(40), dec!(4.0438)),
+                (dec!(50), dec!(5.3450)),
+                (dec!(60), dec!(6.0934)),
+            ]),
+        );
+        input.insert(
+            ("1".to_string(), "baz".to_string()),
+            DataDigital::new(vec![
+                (dec!(10), dec!(1.0423)),
+                (dec!(20), dec!(2.9832)),
+                (dec!(30), dec!(3.5347)),
+                (dec!(40), dec!(4.3402)),
+                (dec!(50), dec!(5.1039)),
+                (dec!(60), dec!(6.0814)),
+            ]),
+        );
+        input.insert(
+            ("2".to_string(), "bar".to_string()),
+            DataDigital::new(vec![
+                (dec!(10), dec!(1.7542)),
+                (dec!(20), dec!(2.1237)),
+                (dec!(30), dec!(3.0922)),
+                (dec!(40), dec!(4.4072)),
+                (dec!(50), dec!(5.0913)),
+                (dec!(60), dec!(6.3488)),
+            ]),
+        );
+
+        let expected = vec![
+            vec![
+                (0, dec!(10)),
+                (1, dec!(1.1594)),
+                (2, dec!(1.0423)),
+                (3, dec!(1.7542)),
+            ],
+            vec![
+                (0, dec!(20)),
+                (1, dec!(2.4639)),
+                (2, dec!(2.9832)),
+                (3, dec!(2.1237)),
+            ],
+            vec![
+                (0, dec!(30)),
+                (1, dec!(3.2370)),
+                (2, dec!(3.5347)),
+                (3, dec!(3.0922)),
+            ],
+            vec![
+                (0, dec!(40)),
+                (1, dec!(4.0438)),
+                (2, dec!(4.3402)),
+                (3, dec!(4.4072)),
+            ],
+            vec![
+                (0, dec!(50)),
+                (1, dec!(5.3450)),
+                (2, dec!(5.1039)),
+                (3, dec!(5.0913)),
+            ],
+            vec![
+                (0, dec!(60)),
+                (1, dec!(6.0934)),
+                (2, dec!(6.0814)),
+                (3, dec!(6.3488)),
+            ],
+        ];
+
+        let output = transform(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn transform_2() {
+        let mut input: HashMap<(String, String), DataDigital> = HashMap::new();
+        input.insert(
+            ("0".to_string(), "foo".to_string()),
+            DataDigital::new(vec![
                 (dec!(1), dec!(1.1594)),
                 (dec!(2), dec!(2.4639)),
                 (dec!(3), dec!(3.2370)),
                 (dec!(4), dec!(4.0438)),
-                (dec!(5), dec!(5.3450)),
-                (dec!(6), dec!(6.0934)),
             ]),
         );
         input.insert(
@@ -460,8 +572,6 @@ mod tests {
                 (dec!(2), dec!(2.9832)),
                 (dec!(3), dec!(3.5347)),
                 (dec!(4), dec!(4.3402)),
-                (dec!(5), dec!(5.1039)),
-                (dec!(6), dec!(6.0814)),
             ]),
         );
         input.insert(
@@ -471,8 +581,6 @@ mod tests {
                 (dec!(2), dec!(2.1237)),
                 (dec!(3), dec!(3.0922)),
                 (dec!(4), dec!(4.4072)),
-                (dec!(5), dec!(5.0913)),
-                (dec!(6), dec!(6.3488)),
             ]),
         );
 
@@ -501,18 +609,6 @@ mod tests {
                 (2, dec!(4.3402)),
                 (3, dec!(4.4072)),
             ],
-            vec![
-                (0, dec!(5)),
-                (1, dec!(5.3450)),
-                (2, dec!(5.1039)),
-                (3, dec!(5.0913)),
-            ],
-            vec![
-                (0, dec!(6)),
-                (1, dec!(6.0934)),
-                (2, dec!(6.0814)),
-                (3, dec!(6.3488)),
-            ],
         ];
 
         let output = transform(input);
@@ -521,7 +617,6 @@ mod tests {
 }
 
 use web_sys::HtmlCanvasElement;
-use yew::prelude::*;
 use yew::NodeRef;
 
 #[derive(Properties, PartialEq, Clone)]
@@ -532,26 +627,41 @@ struct FigureProps {
 #[function_component]
 fn Figure(props: &FigureProps) -> Html {
     let canvas_ref: NodeRef = use_node_ref();
-    if let Some(canvas) = canvas_ref.cast::<HtmlCanvasElement>() {
-        draw(&canvas, props.data.clone());
-        html! {
-            <div>
-                <canvas ref={canvas_ref.clone()} width="800" height="600"></canvas>
-            </div>
-        }
-    } else {
-        log::error!("Failed to get canvas");
-        html! {
-            <div>
-                <canvas ref={canvas_ref.clone()} width="0" height="0"></canvas>
-            </div>
-        }
+    draw(&canvas_ref, props.data.clone());
+    html! {
+        <div>
+            <canvas ref={canvas_ref.clone()} width="800" height="600"></canvas>
+        </div>
     }
 }
 
-fn draw(canvas: &HtmlCanvasElement, data: DataDigital) {
+fn draw(canvas: &NodeRef, data: DataDigital) -> Option<()> {
     use plotters::prelude::*;
     use plotters_canvas::CanvasBackend;
+
+    fn get_range(data: &Vec<Decimal>) -> Option<Range<f64>> {
+        let min = data
+            .iter()
+            .map(|d| d.to_f64().unwrap_or(f64::INFINITY))
+            .fold(f64::INFINITY, f64::min);
+        let max = data
+            .iter()
+            .map(|d| d.to_f64().unwrap_or(f64::NEG_INFINITY))
+            .fold(f64::NEG_INFINITY, f64::max);
+        if min.is_infinite() || max.is_infinite() {
+            None
+        } else {
+            Some(min..max)
+        }
+    }
+
+    let x_range = get_range(&data.get_x_list()).unwrap_or_else(|| 0.0..1.0);
+    let y_range = get_range(&data.get_y_list()).unwrap_or_else(|| 0.0..1.0);
+
+    let canvas = match canvas.cast::<HtmlCanvasElement>() {
+        Some(canvas) => canvas,
+        None => return None,
+    };
 
     let rect = canvas.get_bounding_client_rect();
     canvas.set_height(rect.height() as u32);
@@ -562,18 +672,20 @@ fn draw(canvas: &HtmlCanvasElement, data: DataDigital) {
 
     let drawing_area = backend.into_drawing_area();
     drawing_area
-        .fill(&RGBColor(200, 200, 200))
+        .fill(&RGBColor(255, 255, 255))
         .expect("Failed to fill drawing area");
 
     let mut chart = ChartBuilder::on(&drawing_area)
-        .caption("y=x^2", ("sans-serif", 14).into_font())
+        .caption("RMS Phased Error", ("sans-serif", 14).into_font())
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(-1f64..1f64, -0.1f64..1f64)
+        .build_cartesian_2d(x_range, y_range)
         .expect("Failed to build chart");
 
     chart.configure_mesh().draw().expect("Failed to draw mesh");
+
+    debug!("1");
 
     let x_list = data.get_data();
     chart
@@ -584,4 +696,6 @@ fn draw(canvas: &HtmlCanvasElement, data: DataDigital) {
             &RED,
         ))
         .expect("Failed to draw series");
+
+    Some(())
 }

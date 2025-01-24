@@ -1,35 +1,3 @@
-use std::{collections::HashMap, str::FromStr};
-
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-struct Record {
-    categories: Vec<String>,
-    freq: String,
-    value: u32,
-}
-
-impl Record {
-    fn new(record: Vec<String>, category_count: usize) -> Self {
-        let categories = record[..category_count].to_vec();
-        let freq = record[category_count].clone();
-        let value = record[category_count + 1].parse().unwrap();
-        Record {
-            categories,
-            freq,
-            value,
-        }
-    }
-
-    fn category(&self) -> String {
-        let mut category = self.categories.join("-");
-        if category.len() > 16 {
-            category.truncate(16);
-        }
-        category
-    }
-}
-
 pub fn conv_csv(input: String, n: usize) -> Vec<(String, String)> {
     let mut data_map: std::collections::HashMap<String, Vec<String>> =
         std::collections::HashMap::new();
